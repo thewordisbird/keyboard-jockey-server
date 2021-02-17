@@ -20,6 +20,7 @@ let activeGames = []
 
 const PLAYER = {
   id: '',
+  gameId: null,
   alias: '',
   avitar: '',
   progress: 0,// The character of the string the player is it
@@ -30,18 +31,19 @@ let PLAYERS = []
 
 io.on('connection', socket => {
   // Initialize player object and broadcast to all players
-  console.log(`User ${socket.id} joined the game.`)
+  const playerId = socket.id;
+  console.log(`User ${playerId} joined the game.`)
   
   // Add player to waiting object until they trigger a game start
+  // TODO: Make the waiting object a queue
   addPlayerToWaiting(socket.id)
-  joinGame(socket.id)
-  console.log(activeGames)
-  socket.on('disconnect', () => removePlayerFromWaiting(socket.id))
+  joinGame(socket)
+  socket.on('disconnect', () => disconnectPlayer(socket))
 
   socket.on('joinGame', () => {
     // Check to see if there are any open rooms that have a status of staging
     // If availible place player into that room and emit the current game countdown status
-    joinGame(socket.id)
+    joinGame(socket)
 
     // Else: start a new room and start a countdown time waiting for others to join
 
@@ -80,50 +82,63 @@ const addPlayerToWaiting = (socketId => {
   console.log(activePlayers)
 })
 
-const removePlayerFromWaiting = (socketId => {
-  console.log(`Disconnecting user ${socketId}`)
+const disconnectPlayer = (socket => {
+  console.log(`Disconnecting user ${socket.id}`)
+    const player = {...activePlayers[socket.id] }
+    // Remove player from room
+    const game = {...activeGames[player.gameId] }
+    const playerGameIdx = game.players.findIndex(p => p === player.id)
+    const updatedGame = {
+      ...game,
+      players: game.players.splice(playerGameIdx,1)
+    }
+    activeGames = {
+      ...activeGames,
+      
+    }
     // Remove the user from the activePlayers object
-    const tmpactivePlayers = activePlayers
-    delete tmpactivePlayers[socketId]
+    
+    delete tmpactivePlayers[socket.id]
     activePlayers = {
       ...tmpactivePlayers,
     }
     console.log(activePlayers)
 })
 
-const joinGame = (socketId => {
+const joinGame = ((socket) => {
   // Add a player to a game if availible or begin a new game
   // TODO: in the add methods creat the socket.io room for the game 
   let openGame = false
     for (const game of activeGames) {
       if (game.status === 'staging') {
-        addPlayerToGame(socketId, game.gameId)
+        addPlayerToGame(socket, game.gameId)
         openGame = true
         break;
       }
     }
 
     if (!openGame) {
-      addPlayerToNewGame(socketId)
+      addPlayerToNewGame(socket)
     }
+    console.log('the socket has been added to:', socket.rooms)
 })
-const addPlayerToNewGame = (socketId => {
+const addPlayerToNewGame = (socket => {
   // The room id will be the string concatination of socketId + timestring
   console.log('Adding Player to new game')
   const timestamp = +new Date()
-  const gameId = socketId + '-' + timestamp.toString()
-  console.log('gameId:', gameId)
+  const gameId = socket.id + '-' + timestamp.toString()
+  socket.join(gameId)
   activeGames = [
     ...activeGames,
     {
       gameId: gameId,
       status: 'staging',
-      players: [socketId]
+      players: [socket.id]
     }
   ]
 })
 
-const addPlayerToGame = ((socketId, gameId) =>{
+const addPlayerToGame = ((socket, gameId) =>{
   console.log('Adding Player to staging game')
   console.log('activeGames: ', activeGames)
   const gameIdx = activeGames.findIndex(game => {
@@ -133,9 +148,10 @@ const addPlayerToGame = ((socketId, gameId) =>{
   console.log('gameIdx: ', gameIdx)
   const game = activeGames[gameIdx]
   console.log('game', game)
+  socket.join(game.gameId)
   const tmpGame = {
     ...game,
-    players: [...game.players, socketId],
+    players: [...game.players, socket.id],
     status: game.players.length < 3 ? 'staging' : 'pre-game'
   }
   tmpActiveGames = [...activeGames]
