@@ -1,20 +1,24 @@
 import { Player } from './player.model';
 
 export class Game {
-  public id: String
-  public status: String // staging, pre-game, active, finished
-  public players: Player[] 
+  private MAX_PLAYERS: number = 4
+  public id: string
+  public status: string // staging, pre-game, active, finished
+  public players: Player[] = []
 
-  constructor(gameId: String) {
+  constructor(gameId: string) {
     this.id = gameId;
     this.status = "staging"
   };
 
   public addPlayer(player: Player) {
     this.players.push(player)
+    if (this.players.length === this.MAX_PLAYERS) {
+      this.status = 'pre-game';
+    }
   }
 
-  public removePlayer(playerId: String) {
+  public removePlayer(playerId: string) {
     const playerIdx = this.players.findIndex(player => {
       player.id === playerId
     });
