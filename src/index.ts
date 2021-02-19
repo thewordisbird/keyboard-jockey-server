@@ -18,6 +18,13 @@ io.on('connection', (socket: any) => {
   const playerId: string  = socket.id;
   console.log(`User ${playerId} connected.`)
 
+  // socket.on('testClient', (message: string) => {
+  //   console.log('Test message from client to socket', message)
+  //   io.emit('testServer', 'Major Tom to ground control')
+  // })
+
+ 
+
   // Add new player to players object
   const player = new Player(playerId)
   players = {
@@ -42,7 +49,7 @@ io.on('connection', (socket: any) => {
       }
     }
 
-    const game = games[gameId] || new Game(gameId)
+    const game = games[gameId] || new Game(gameId, socket)
     game.addPlayer(player);
     socket.join(gameId);
     games = {
@@ -52,10 +59,14 @@ io.on('connection', (socket: any) => {
 
     player.setGame(gameId);
 
-  
-    socket.emit('updateGame', JSON.stringify(game))
+    console.log('Rooms', socket.rooms)
+    console.log(gameId)
+    io.to(gameId).emit('The game will be starting soon')
     console.log(`Player ${playerId} has joined game ${gameId}`)
     console.log('Games after join:', games)
+
+
+    
   })
 
   // Update the gamestate and re-brodcast
@@ -65,6 +76,8 @@ io.on('connection', (socket: any) => {
       ...players[playerId],
 
     }
+
+  
   })
 
   // On disconnect remove the player from the players object and from any games they are in
